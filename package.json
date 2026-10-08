@@ -1,0 +1,17 @@
+{
+  "name": "art-gallery-managment-system",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:backend": "pnpm --filter @art-gallery/backend run dev",
+    "dev:frontend": "pnpm --filter @art-gallery/frontend run dev",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test"
+  }
+}
