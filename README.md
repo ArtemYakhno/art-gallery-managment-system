@@ -125,10 +125,6 @@ apps/
 
 Kept out of scope for a test task on purpose, but this is what I would add before a real production launch:
 
-1. **Request IDs** — a correlation ID in every log line and in error responses, to trace one request across interleaved logs and multiple instances.
-2. **Structured logging** — JSON logs (e.g. `nestjs-pino`) instead of plain text, so a log platform can filter and aggregate them.
-3. **Error tracking** — unexpected `500`s sent to a tool like Sentry, with alerts and release tracking.
-4. **Machine-readable error codes** — a stable `code` field (or RFC 9457 Problem Details), so the client does not depend on message text.
-5. **Health endpoints** — no internal error details in public responses; separate liveness and readiness checks.
-6. **Idempotent `POST`** — an `Idempotency-Key` header with keys stored in the database, so a retried request (after a timeout or a double click) does not create a duplicate. Within this task, double submits are handled on the frontend instead: the add/edit form and the delete dialog ignore a second click and disable their buttons while the request is in progress. `GET`, `PUT` and `DELETE` are already idempotent by HTTP semantics.
-7. **Concurrent edits** — optimistic locking (a `version` field, `409 Conflict` on mismatch), so two admins editing the same artwork do not silently overwrite each other.
+1. **Idempotent `POST`** — an `Idempotency-Key` header with keys stored in the database, so a retried request (after a timeout or a double click) does not create a duplicate. Within this task, double submits are handled on the frontend instead: the add/edit form and the delete dialog ignore a second click and disable their buttons while the request is in progress. `GET`, `PUT` and `DELETE` are already idempotent by HTTP semantics.
+2. **Concurrent edits** — optimistic locking (a `version` field, `409 Conflict` on mismatch), so two admins editing the same artwork do not silently overwrite each other.
+3. **Artwork photos** — the UI example shows photos, but the data model in the brief has no photo field, so cards use a generated gradient. The next step would be an optional `imageUrl` field and a separate `POST /artworks/:id/image` upload endpoint (file type and size checks, files in object storage), so the JSON contract of `POST` / `PUT` stays the same.

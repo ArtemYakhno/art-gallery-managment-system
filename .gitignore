@@ -9,7 +9,6 @@ generated/
 coverage/
 *.tsbuildinfo
 
-.claude/plans/
 .claude/settings.local.json
 
 .history/
