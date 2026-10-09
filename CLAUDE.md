@@ -1,11 +1,11 @@
-> **Living document.** Тестове завдання **Art Gallery Management System** для **Techstack** (Trainee Full-Stack JS). Робимо обидві частини ТЗ: Web API (NestJS) і SPA (React), що працює з реальним API. **Поточний стан:** backend готовий — модель `Artwork`, CRUD `/artworks` (фільтри, сортування, валідація), seed перших 4 творів, health-check. Frontend — поки лише сторінка статусу API; сторінки галереї ще не реалізовані. Секції нижче описують лише те, що реально є в коді.
+> **Living document.** Тестове завдання **Art Gallery Management System** для **Techstack** (Trainee Full-Stack JS). Робимо обидві частини ТЗ: Web API (NestJS) і SPA (React), що працює з реальним API. **Поточний стан:** backend готовий — модель `Artwork`, CRUD `/artworks` (фільтри, сортування, валідація), seed перших 4 творів, health-check. Frontend готовий — одна сторінка галереї: список карток, фільтр за типом, пошук за artist, сортування за ціною (стан у URL), додавання / редагування / видалення. Далі — фото творів окремим планом. Секції нижче описують лише те, що реально є в коді.
 
 ## Технологічний стек
 
 | Шар | Технології |
 |---|---|
 | Backend | NestJS 12 (**ESM**), Prisma ORM 7 + `@prisma/adapter-pg`, PostgreSQL 18, `class-validator`/`class-transformer`, Swagger, `@nestjs/terminus`, `helmet`, CORS, **Vitest**, **oxlint** (type-aware) + Prettier |
-| Frontend | React 19 + TypeScript 6, Vite 8, TanStack Query (+ devtools), axios, Zod 4, Tailwind CSS v4, shadcn/ui (стиль `radix-nova`), Vitest + Testing Library, oxlint |
+| Frontend | React 19 + TypeScript 6, Vite 8, TanStack Query (+ devtools), axios, Zod 4, React Hook Form + `@hookform/resolvers`, `nuqs` (стан у URL), `sonner` (toasts), Tailwind CSS v4, shadcn/ui (стиль `radix-nova`), Vitest + Testing Library (+ `user-event`), oxlint + Prettier |
 | Інфраструктура | Docker Compose (Postgres), pnpm 10 workspaces (`apps/backend` + `apps/frontend`), Node 24 |
 | AI-workflow | Claude Code, custom-flow процес, `.claude/hooks` |
 
@@ -15,9 +15,10 @@
 art-gallery-managment-system/
 ├── apps/
 │   ├── backend/     # NestJS — src/ (artworks/ [dto/, mapper, service, controller], health/, common/ [setup, configs, decorators, filters, middlewares, prisma, utils], generated/ — Prisma client, gitignored), prisma/ (schema, migrations/, seed.ts), prisma.config.ts
-│   └── frontend/    # Vite + React — app/ (providers/, components/ui — shadcn), common/ (api/, lib/, schemas/, types/, utils/), features/ (health — components/queries), pages/, test/
+│   └── frontend/    # Vite + React — app/ (providers/, layouts/ [MainLayout, Header, Footer], components/ui — shadcn), common/ (api/, constants/, lib/, schemas/, types/, utils/ [errors/, formatPrice]), features/artworks/ (components/ [filters/, form/], constants/, hooks/, queries/, utils/), pages/ (GalleryPage), test/
 ├── docker-compose.yml
 ├── .env.example
+├── .vscode/         # лише extensions.json (Oxc, Prettier) — решта gitignored
 └── .claude/         # settings.json, hooks/, plans/ (gitignored)
 ```
 
@@ -25,7 +26,7 @@ art-gallery-managment-system/
 
 ## Локальний запуск
 
-`docker compose up -d` (Postgres `:5433`) → `pnpm install` → `pnpm --filter @art-gallery/backend prisma:generate` → `… prisma:migrate` → `… prisma:seed` → `pnpm dev` (backend `:8000`, frontend `:5173`; `.env` у корені за зразком `.env.example`). `pnpm typecheck`/`lint`/`test` — по всіх пакетах, або `--filter @art-gallery/backend|frontend`. Swagger — `/api`, health-check — `/health`.
+`docker compose up -d` (Postgres `:5433`) → `pnpm install` → `pnpm --filter @art-gallery/backend prisma:generate` → `… prisma:migrate` → `… prisma:seed` → `pnpm dev` (backend `:8000`, frontend `:5173`; `.env` у корені за зразком `.env.example`). `pnpm typecheck`/`lint`/`test` — по всіх пакетах, або `--filter @art-gallery/backend|frontend`; `format` (Prettier) — лише через `--filter` (у фронті `.prettierignore` виключає `components/ui` — код shadcn у своєму стилі). Swagger — `/api`, health-check — `/health`.
 
 - Порт `8000` — як у прикладах ТЗ (`http://localhost:8000/artworks`).
 - Postgres на `5433`, контейнер `art-gallery-postgres` — щоб не конфліктувати з іншими локальними Postgres.
@@ -40,7 +41,9 @@ art-gallery-managment-system/
 - DTO за призначенням: `Create<X>Dto` (POST), `Replace<X>Dto extends Create<X>Dto` (PUT — повна заміна, тіло те саме), `Get<X>QueryDto` (query), `<X>ResponseDto` (форма відповіді для Swagger). Enum-и в DTO — з `generated/prisma/enums.js` (не дублювати).
 - Feature-специфічні `select`/мапери — поруч із фічею (`artworks/artwork.mapper.ts`), не в `common/`.
 - React-компоненти: PascalCase, один компонент на файл. Custom hooks: `useX.ts`.
-- **Frontend:** Zod-схеми — у `common/schemas/*.schema.ts` (лише `z.object/enum`), типи — `z.infer` у `common/types/*.ts`, **окремо від схем**. HTTP-виклики — у `common/api/*.ts` (обʼєкт-сервіс, відповідь парситься через `parseApiResponse`); axios-інстанс — `common/lib/apiClient.ts`; TanStack Query хуки й ключі — у `features/*/queries/` (не inline у компонентах). Аліас `@/` → `src/`.
+- **Frontend:** Zod-схеми — у `common/schemas/*.schema.ts` (лише `z.object/enum`), типи — `z.infer` у `common/types/*.ts`, **окремо від схем**. HTTP-виклики — у `common/api/*.ts` (обʼєкт-сервіс, відповідь парситься через `parseApiResponse`); axios-інстанс — `common/lib/apiClient.ts`; TanStack Query хуки й ключі — у `features/*/queries/` (не inline у компонентах; ключі — фабрика `artworkKeys`). Ліміти полів — `common/constants/artwork.constants.ts` (спільні для схеми й форми). Аліас `@/` → `src/`.
+- **Frontend-форми:** React Hook Form + `zodResolver(artworkFormSchema)`; поле обгортає `FormField` (label + `role="alert"` помилка + `aria-describedby`); Radix-контроли (`Select`, `Switch`) — через `Controller`. Помилки мутацій — `handleMutationError(error, setError?, fieldMap?)`: поля з `400 errors` → `setError`, решта → `toast.error`.
+- **Стан у URL** — лише через `useArtworksParams` (`nuqs`): парсери з `*.options` Zod-енумів (без дублювання значень), компоненти фільтрів отримують `value`/`onChange` пропсами й про URL не знають.
 - shadcn: `cn` — `common/lib/cn.ts` (реекспорт пакета `cn` від shadcn — новий дефолт CLI замість `clsx` + `tailwind-merge`), компоненти — `app/components/ui/` (аліаси в `components.json`).
 
 ## Testing conventions
@@ -49,7 +52,9 @@ art-gallery-managment-system/
 - Backend, обсяг — **найпростіші unit-тести** (рішення користувача): DTO, сервіси з мок-Prisma, утиліти; без e2e з реальною БД (ендпоінти перевіряються вручну через curl/Swagger).
 - **DTO тестуються через справжній `ValidationPipe(validationConfig)`** + `pipe.transform(value, { type: 'body' | 'query', metatype })` (патерн із book-managment) — так покриваються й `forbidNonWhitelisted`, `@Trim`, default-и полів. Одне невалідне поле на кейс (`it.each`), інакше `rejects.toThrow(BadRequestException)` пройде через інше поле.
 - Сервіси — `new XService(mock as unknown as PrismaService)` з `vi.fn()` лише для методів, які сервіс викликає; моки перестворюються в `beforeEach`.
-- Frontend: рендер із провайдерами — `src/test/renderWithProviders.tsx` (поки лише `QueryClient`; `MemoryRouter` додати разом із роутером). `setupTests.ts` підключає jest-dom і поліфіли Pointer Capture + `scrollIntoView` (без них тести з Radix Select/Dropdown падають). Сервіси мокаються через `vi.mock('@/common/api/...')`.
+- Frontend: рендер із провайдерами — `src/test/renderWithProviders.tsx` (новий `QueryClient` з `retry: false` + `NuqsTestingAdapter`; опції `searchParams` — початковий URL, `onUrlUpdate` — шпигун на запис URL). Хук `useArtworksParams` — `renderHook` + `withNuqsTestingAdapter`, запис URL перевіряється через `onUrlUpdate` у `waitFor` (nuqs пише URL асинхронно). `setupTests.ts` підключає jest-dom і поліфіли Pointer Capture + `scrollIntoView` + `ResizeObserver` (без них тести з Radix Select/Switch падають).
+- **Моки:** сервіси — `vi.mock('@/common/api/...')`, мокається лише мережевий шар (компоненти, `useMutation`/`useQuery` — справжні). Після `vi.mock` — завжди аліас `const create = vi.mocked(artworksService.create)` і далі **лише він** (не змішувати з `artworksService.create`). Якщо `mutationFn` — сам метод сервісу (без обгортки), TanStack передає другим аргументом контекст → `toHaveBeenCalledWith(id, expect.anything())`.
+- **Патерни:** `waitFor` — з `@testing-library/react` (не `vi.waitFor`); debounce — `vi.useFakeTimers()` + `fireEvent` (`userEvent` з fake timers зависає без `advanceTimers`); подвійний клік — `mockReturnValue(new Promise(() => {}))` + два синхронні `fireEvent.click` (з `userEvent` кнопка встигає стати `disabled`, і ref-захист не перевіряється); решта взаємодій — `userEvent.setup()`.
 - Запуск: `pnpm --filter @art-gallery/backend|frontend run test`.
 
 ## Git workflow
@@ -69,11 +74,15 @@ art-gallery-managment-system/
 - **`PUT` = повна заміна** (`update` з усім DTO), не `PATCH`; `PATCH` немає.
 - **`GET /artworks`:** `artist` — `contains` + `mode: 'insensitive'` (порожній — ігнорується), `type` — точний збіг, `price=asc|desc`; без `price` — `createdAt desc`. Завжди `id asc` як tie-breaker (стабільний порядок за рівних значень). Відповідь — лише поля моделі ТЗ (`ARTWORK_SELECT`, без timestamps). Пагінації немає (немає в ТЗ).
 - **`:id`** — UUID (`@db.Uuid`), `ParseUUIDPipe` → не-UUID дає `400`.
-- **Ідемпотентність `POST`** — не реалізована свідомо (питання замовнику надіслано): захист від подвійного кліку — на фронті (кнопка disabled під час мутації); backend-варіант (`Idempotency-Key` + таблиця в Postgres) — у README «Production considerations». `GET`/`PUT`/`DELETE` ідемпотентні за HTTP-семантикою.
+- **Ідемпотентність `POST`** — на бекенді **не реалізована** (замовник: «буде плюсом, але не обовʼязково»; рішення 2026-10-09 — не встигаємо). Захист від подвійного кліку — лише на фронті: `useRef`-прапорець (`isSaving` / `isDeleting`) відсікає другий клік у тому ж тіку, ще до ререндеру, + кнопка `disabled` поки `isPending`. Backend-варіант (`Idempotency-Key` + таблиця в Postgres) — у README «Production considerations». `GET`/`PUT`/`DELETE` ідемпотентні за HTTP-семантикою.
 - **Health-check:** `GET /health` — Terminus + кастомний `PrismaHealthIndicator` (`$queryRaw SELECT 1`): `200` або `503` з `details.database.status = down` і причиною. Після падіння БД Prisma перепідключається сама.
-- **Frontend — health як data, а не помилка:** `healthService.getHealth` приймає і `200`, і `503` (`validateStatus`) — обидва мають однакову форму `details`, тож UI показує «API up / database down», а не загальну помилку. Помилка запиту без відповіді → «No server connection» (`extractErrorMessage`).
-- **Frontend API-шар:** `apiClient` — axios з `baseURL = VITE_API_URL`, без інтерцепторів. `queryClient` — `retry: false`, `staleTime` 60 с. `parseApiResponse` — Zod-валідація відповідей; невідповідність → `ApiValidationError`. Vite читає кореневий `.env` (`envDir`).
-- **Тимчасове:** `pages/HomePage.tsx` (статус API) рендериться напряму з `GlobalProvider`, без роутера — замінюється сторінкою галереї.
+- **Frontend API-шар:** `apiClient` — axios з `baseURL = VITE_API_URL`, без інтерцепторів. `queryClient` — `retry: false`, `staleTime` 60 с. `parseApiResponse` — Zod-валідація відповідей; невідповідність → `ApiValidationError` («Server returned unexpected data»). Помилка без відповіді → «No server connection», інакше — `message` з тіла бекенду (`extractErrorMessage`). Vite читає кореневий `.env` (`envDir`).
+- **Frontend — одна сторінка без роутера:** `main.tsx` → `GlobalProvider` (`NuqsAdapter` для React без роутера, `QueryClientProvider`, `Toaster`) → `MainLayout` (header / footer) → `GalleryPage`. Додавання й редагування — shadcn `Dialog`, видалення — `AlertDialog`. Роутер не потрібен: усе на одному екрані, як в UI Example ТЗ.
+- **Фільтри й сортування — на бекенді**, стан — у URL (`nuqs`): `type` / `price` — `parseAsStringLiteral` (невалідне значення в URL → `null` → ігнорується, а не `400`), `artist` — `parseAsString.withDefault('')`. Дефолти nuqs v2: default-значення в URL не пишуться (`clearOnDefault`), `history: 'replace'`. Пошук artist — локальний `useState` + debounce 400 мс (`ArtworkSearchInput`); синхронізація назад (Reset) — оновлення стану під час рендеру при зміні пропса, не `useEffect`. Порожні значення до API не йдуть.
+- **Дані:** `useArtworksQuery` — `queryKey: artworkKeys.list(filters)` + `placeholderData: keepPreviousData` (сітка не блимає при зміні фільтра, стара — з `opacity-60`). Мутації — `invalidateQueries(artworkKeys.lists())` в `onSettled`, **без optimistic updates** (простіше і завжди точно; `onSettled`, а не `onSuccess` — щоб `404` на видаленні теж оновив список).
+- **Додавання й редагування — один `ArtworkFormDialog` / `ArtworkForm`** (`artwork?` → режим edit) і одна мутація `useSaveArtworkMutation` (`create` або `update`). Edit: `Save` disabled, поки форма не змінена (`isDirty`); `PUT` — усе тіло. Під час запиту діалог не закривається (ні `Cancel` — disabled, ні Escape / клік поза ним — `onOpenChange` ігнорує закриття): мутація живе в дочірній формі, тож `ArtworkFormDialog` дізнається про запит через `useIsMutating({ mutationKey: artworkKeys.save(id) })`, а `DeleteArtworkDialog` — з власного `isPending`. При закритті вміст діалогу розмонтовується → наступне відкриття з порожньою формою.
+- **Фото-заглушка:** `getArtworkGradient(id)` — хеш `id` (FNV-1a + MurmurHash3 finalizer) → два відтінки HSL; стабільний між reload, різний для сусідніх UUID. Поверх — іконка типу (`ARTWORK_TYPE_CONFIG`).
+- **Ціна в UI** — `formatPrice`: `Intl.NumberFormat('en-US', USD)` з `trailingZeroDisplay: 'stripIfInteger'` → `$4,500`, `$2,750.50`.
 
 ## Domain model
 
@@ -106,13 +115,10 @@ Swagger — `/api`. `400` — і невалідне тіло/query (зокрем
 
 ## Відкриті питання / наступні кроки
 
-- **Фото в UI-прикладі ТЗ, але не в моделі / `POST`-тілі** — чекаємо відповідь замовника. Поки що: на бекенді поля немає, на фронті — заглушка. Додавання — окрема міграція + поле в DTO.
-- **Ідемпотентність `POST`** — чекаємо відповідь замовника (див. архітектурні рішення).
+- **Фото в UI-прикладі ТЗ, але не в моделі / `POST`-тілі** — замовник: вільний вибір. **Наступний план.** Поки що: на бекенді поля немає, на фронті — градієнт-заглушка.
 - **Lost update** при одночасному `PUT` двох адмінів — не вирішено (немає в ТЗ); варіант — optimistic locking (`version`/`updatedAt` → `409`).
 - **`/health` віддає сирий текст помилки Prisma** назовні — прийнятно локально, на проді — витік. Відоме обмеження.
-- **Бандл фронту ~675 kB** (попередження Vite > 500 kB): основна вага — React 19, Zod 4, axios; devtools — окремий lazy-чанк. Не оптимізовано свідомо.
-- Router, React Hook Form, sonner — ще не встановлені, додаються разом зі сторінками галереї.
-
+- **Бандл фронту ~911 kB / 284 kB gzip** (попередження Vite > 500 kB): основна вага — React 19, Radix, Zod 4, React Hook Form, axios; devtools — окремий lazy-чанк. Одна сторінка, тож code splitting майже нічого не дав би — не оптимізовано свідомо.
 ## AI workflow
 
 Процес — `custom-flow`: план на задачу зі стейджами, явне підтвердження до реалізації. Плани — `.claude/plans/` (gitignored).

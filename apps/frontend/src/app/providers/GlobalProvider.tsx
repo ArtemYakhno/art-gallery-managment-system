@@ -1,14 +1,21 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { NuqsAdapter } from "nuqs/adapters/react";
+import { Toaster } from "sonner";
+import { MainLayout } from "@/app/layouts/MainLayout";
 import { queryClient } from "@/common/lib/queryClient";
-import { HomePage } from "@/pages/HomePage";
+import { GalleryPage } from "@/pages/GalleryPage";
 
-// Temporary: renders the API status page directly. The router arrives with the gallery pages.
 export const GlobalProvider = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <HomePage />
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    <NuqsAdapter>
+      <QueryClientProvider client={queryClient}>
+        <MainLayout>
+          <GalleryPage />
+        </MainLayout>
+        <Toaster position="top-right" richColors />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </NuqsAdapter>
   );
 };

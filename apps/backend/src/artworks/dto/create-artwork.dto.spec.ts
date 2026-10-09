@@ -78,8 +78,7 @@ describe('CreateArtworkDto', () => {
   });
 });
 
-// ReplaceArtworkDto only extends CreateArtworkDto, so check that the
-// validators, @Trim and the field default are actually inherited.
+// Checks that validators, @Trim and the default are inherited.
 describe('ReplaceArtworkDto', () => {
   const pipe = new ValidationPipe(validationConfig);
   const metadata: ArgumentMetadata = {

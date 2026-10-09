@@ -26,3 +26,14 @@ export function extractErrorMessage(error: unknown): string {
 
   return axiosError.response.data?.message ?? "An unknown error occurred";
 }
+
+export function extractFieldErrors(error: unknown): Record<string, string> {
+  const data = (error as AxiosError<BackendErrorBody>)?.response?.data;
+  if (!data?.errors) return {};
+
+  return Object.fromEntries(
+    Object.entries(data.errors)
+      .filter(([, messages]) => messages.length > 0)
+      .map(([field, messages]) => [field, messages[0]]),
+  );
+}

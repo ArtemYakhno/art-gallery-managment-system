@@ -11,12 +11,7 @@ function isHandledCode(code: string): code is PrismaErrorCode {
   return Object.hasOwn(PRISMA_ERROR_STATUS, code);
 }
 
-/**
- * Translates the listed Prisma codes into HTTP exceptions, rethrows anything else.
- *
- * Catching after the fact rather than checking first is deliberate: the statement
- * is atomic, so there is no check-then-write window for another request to slip in.
- */
+// Catch after the query instead of checking first: no gap between check and write.
 export function rethrowPrismaError(
   error: unknown,
   messages: Partial<Record<PrismaErrorCode, string>>,

@@ -1,0 +1,3 @@
+export const ARTWORK_TITLE_MAX_LENGTH = 99;
+export const ARTWORK_ARTIST_MAX_LENGTH = 50;
+export const ARTWORK_PRICE_MAX = 9_999_999_999.99;
